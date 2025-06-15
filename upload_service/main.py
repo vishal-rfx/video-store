@@ -1,15 +1,31 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
 import boto3
 
 
-load_dotenv()
+load_dotenv(override=True)
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:3000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_methods=["*"],
+    allow_credentials=True,
+    allow_headers=["*"]
+)
+
 @app.get("/")
 async def home():
+    """
+    Home endpoint that indicates the service is up.
+    """
     return {"message": "Service is Up!"}
 
 
