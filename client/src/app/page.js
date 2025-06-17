@@ -1,10 +1,9 @@
-import UploadForm from "./_components/uploadForm";
-import Room from "./room";
+import AuthPage from "./pages/auth";
 
 export default function Home() {
   return (
     <div>
-      <UploadForm/>
+      <AuthPage/>
     </div>
   );
 }
