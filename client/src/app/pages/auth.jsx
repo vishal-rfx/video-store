@@ -3,6 +3,9 @@ import React from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 
 function AuthPage() {
+  const {data, status} = useSession();
+  console.log(data, status)
+
   const signin = () => {
     console.log("Signing in Google");
     signIn("google");
