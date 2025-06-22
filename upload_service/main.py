@@ -1,10 +1,22 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 import os
+import json
+import logging
+import traceback
+
+from dotenv import load_dotenv
 import boto3
 
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
+from kafka.kafka import KafkaProducer
+
+class Message(BaseModel):
+    message: str
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 load_dotenv(override=True)
 
 app = FastAPI()
@@ -64,3 +76,34 @@ async def upload(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/produce")
+async def produce(msg: Message):
+    """
+    Produces a message to a Kafka topic.
+
+    This endpoint receives a JSON payload, serializes it, and sends it to a Kafka topic
+    using the KafkaProducer class. If an error occurs during the process, it logs the error
+    and returns an HTTP 500 response.
+
+    Args:
+        msg (Message): The message payload to be sent to Kafka.
+
+    Returns:
+        dict: A dictionary containing a success message if the message is produced successfully.
+
+    Raises:
+        HTTPException: If an error occurs while sending the message to Kafka.
+    """
+    logger.debug(f"Received message: {msg}")
+    topic = "TEST"
+    kafka_producer = KafkaProducer(topic)
+    try:
+        msg_bytes = json.dumps(msg.model_dump()).encode('utf-8')
+        await kafka_producer.send(msg_bytes)
+    except Exception as e:
+        logger.error(f"Error sending message: {e}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail=str(e))
+
+    return {"message": "Message produced to kafka successfully"}
