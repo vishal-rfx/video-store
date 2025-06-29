@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from routers import upload
+from upload_service.api.v1.upload import router as upload_router
 from pydantic import BaseModel
 
 from kafka.kafka import KafkaProducer
@@ -32,7 +32,8 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
-app.include_router(upload.router, prefix="/upload", tags=["Upload"])
+
+app.include_router(upload_router, prefix="/upload", tags=["Upload"])
 
 
 @app.get("/")
