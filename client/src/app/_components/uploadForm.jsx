@@ -15,19 +15,79 @@ function UploadForm() {
   };
 
   const handleFileUpload = async (file) => {
+    let uploadId, filename;
+    filename = file.name;
     try {
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("filename", file.name);
       console.log("Uploading a file to backend server");
-      const res = await axios.post("http://localhost:8000/upload", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
 
-      console.log(res.data);
+      const initializeRes = await axios.post(
+        "http://localhost:8000/upload/initialize",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      uploadId = initializeRes.data.uploadId;
+      console.log("Upload id is ", uploadId);
+
+      const chunkSize = 5 * 1024 * 1024;
+      const totalChunks = Math.ceil(file.size / chunkSize);
+
+      let start = 0;
+      const uploads = [];
+      for (let chunkIndex = 1; chunkIndex <= totalChunks; chunkIndex++) {
+        const chunk = file.slice(start, start + chunkSize);
+        start += chunkSize;
+
+        const chunkFormData = new FormData();
+        chunkFormData.append("filename", file.name);
+        chunkFormData.append("chunk", chunk);
+        chunkFormData.append("chunkIndex", chunkIndex);
+        chunkFormData.append("uploadId", uploadId);
+
+        uploads.push(
+          axios.post("http://localhost:8000/upload", chunkFormData, {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          })
+        );
+      }
+
+      const uploadResponses = await Promise.all(uploads);
+      const etags = uploadResponses.map((res, idx) => ({
+        etag: res.data.etag,
+        chunkIndex: res.data.chunkIndex
+      }));
+      console.log("Etags", etags);
+      const completeRes = await axios.post(
+        "http://localhost:8000/upload/complete",
+        {
+          filename: file.name,
+          parts: etags,
+          uploadId: uploadId,
+        }
+      );
+
+      console.log(completeRes.data);
     } catch (error) {
       console.error("Error uploading files: ", error);
+      console.log("Aborting multipart upload");
+      axios
+        .post(
+          `http://localhost:8000/upload/abort?upload_id=${uploadId}&filename=${filename}`
+        )
+        .then((res) => {
+          console.log(res.data);
+        })
+        .catch((err) => {
+          console.error(err);
+        });
     }
   };
 
