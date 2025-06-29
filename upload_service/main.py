@@ -1,12 +1,10 @@
-import os
 import json
 import logging
 import traceback
 
 from dotenv import load_dotenv
-import boto3
 
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from routers import upload
 from pydantic import BaseModel
