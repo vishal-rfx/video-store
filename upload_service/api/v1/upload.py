@@ -3,7 +3,11 @@ import boto3
 import os
 from dotenv import load_dotenv
 
-from fastapi import APIRouter, Form, UploadFile, HTTPException, Request
+from fastapi import APIRouter, Form, UploadFile, HTTPException, Request, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.deps import get_db
+from crud.video import create_video_metadata, VideoMetaDataRequest
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -42,7 +46,7 @@ async def upload(
         raise HTTPException(status_code=404, detail="Upload ID not found")
     except Exception as e:
         logger.error("Exception while uploading part %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail= "Upload Failed")
 
 @router.post('/initialize')
 async def initialize(filename: str = Form(...)):
@@ -57,7 +61,8 @@ async def initialize(filename: str = Form(...)):
             "uploadId": upload_id
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Failed to initialize multipart upload %s", str(e))
+        raise HTTPException(status_code=500, detail="Failed to initialize multipart upload")
 
 @router.post('/complete')
 async def complete(request: Request):
@@ -74,16 +79,12 @@ async def complete(request: Request):
     """
     try:
         data = await request.json()
-        print("DATA", data)
         filename = data["filename"]
         upload_id = data["uploadId"]
         parts_list = data["parts"]
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
-    print("part list", parts_list)
-    for p in parts_list:
-        print(type(p), p)
     parts_sorted = sorted(
         [{"PartNumber": p["chunkIndex"], "ETag": p["etag"]} for p in parts_list],
         key=lambda p: p["PartNumber"],
@@ -99,8 +100,18 @@ async def complete(request: Request):
         return {"message": "File uploaded successfully"}
     except Exception as e:
         logger.error("Exception while completing upload: %s", str(e))
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to complete the upload")
 
-@router.post('/abort')
+
+@router.post('/abort', status_code=200)
 async def abort_upload(upload_id: str, filename: str):
-    s3.abort_multipart_upload(Bucket = s3_bucket, Key=filename, UploadId=upload_id)
+    try:
+        s3.abort_multipart_upload(Bucket=s3_bucket, Key=filename, UploadId=upload_id)
+        return {"message": "Aborted successfully"}
+    except Exception as e:
+        logger.error(f"Failed to abort upload: {e}")
+        raise HTTPException(status_code=500, detail="Failed to abort upload")
+
+@router.post('/metadata')
+async def upload_metadata(payload: VideoMetaDataRequest, db: AsyncSession = Depends(get_db)):
+    return await create_video_metadata(payload, db)
