@@ -3,8 +3,12 @@ import boto3
 import logging
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import text
+
+from db.deps import get_db
 
 load_dotenv(override=True)
 logging.basicConfig(level=logging.DEBUG)
@@ -44,4 +48,30 @@ async def get_presigned_url(key: str):
         logger.error(str(e))
         return HTTPException(status_code= 500, detail="Internal server error while getting presigned url")
 
-
+@app.get('/all-videos')
+async def get_all_videos(db: AsyncSession = Depends(get_db)):
+    try:
+        result = await db.execute(text("SELECT * FROM video_metadata"))
+        videos = result.fetchall()
+        video_list = []
+        for row in videos:
+            video_dict = dict(row._mapping)
+            key = video_dict.get("key")
+            if key:
+                try:
+                    url = s3.generate_presigned_url(
+                        'get_object',
+                        Params={'Bucket': s3_bucket, 'Key': key},
+                        ExpiresIn=3600
+                    )
+                    video_dict["url"] = url
+                except Exception as e:
+                    logger.error(f"Error generating presigned url for key {key}: {e}")
+                    video_dict["url"] = None
+            else:
+                video_dict["url"] = None
+            video_list.append(video_dict)
+        return {"videos": video_list}
+    except Exception as e:
+        logger.error(f"Error fetching videos: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error while fetching videos")
