@@ -1,13 +1,17 @@
+import json
 import logging
+import traceback
 import boto3
 import os
 from dotenv import load_dotenv
 
 from fastapi import APIRouter, Form, UploadFile, HTTPException, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
+from crud.video import VideoMetaDataRequest
 
 from db.deps import get_db
-from crud.video import create_video_metadata, VideoMetaDataRequest
+from crud.video import create_video_metadata
+from kafka.kafka import KafkaProducer
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -65,7 +69,7 @@ async def initialize(filename: str = Form(...)):
         raise HTTPException(status_code=500, detail="Failed to initialize multipart upload")
 
 @router.post('/complete')
-async def complete(request: Request):
+async def complete(request: Request, db: AsyncSession = Depends(get_db)):
     """
         Expects a JSON body like:
         {
@@ -82,6 +86,9 @@ async def complete(request: Request):
         filename = data["filename"]
         upload_id = data["uploadId"]
         parts_list = data["parts"]
+        title = data["title"]
+        author = data.get('author')
+        description = data.get('description')
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
@@ -97,7 +104,33 @@ async def complete(request: Request):
             UploadId=upload_id,
             MultipartUpload={'Parts': parts_sorted}
         )
-        return {"message": "File uploaded successfully"}
+        try:
+            payload = VideoMetaDataRequest(
+                title=title,
+                description=description,
+                author=author,
+                key=filename,
+            )
+
+            await create_video_metadata(payload, db)
+        except Exception as e:
+            logger.error(f"Error when sending metadata to postgres {str(e)}")
+            logger.error(traceback.format_exc())
+
+        kafka_producer = KafkaProducer('transcode')
+        try:
+            msg_bytes = json.dumps({"key": filename}).encode('utf-8')
+            await kafka_producer.send(msg_bytes)
+        except Exception as e:
+            logger.error(f"Error sending message to kafka: {e}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+
+        return {
+            "message": "File uploaded successfully"
+        }
+
+
     except Exception as e:
         logger.error("Exception while completing upload: %s", str(e))
         raise HTTPException(status_code=500, detail="Failed to complete the upload")
@@ -111,7 +144,3 @@ async def abort_upload(upload_id: str, filename: str):
     except Exception as e:
         logger.error(f"Failed to abort upload: {e}")
         raise HTTPException(status_code=500, detail="Failed to abort upload")
-
-@router.post('/metadata')
-async def upload_metadata(payload: VideoMetaDataRequest, db: AsyncSession = Depends(get_db)):
-    return await create_video_metadata(payload, db)
