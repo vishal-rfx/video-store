@@ -1,9 +1,12 @@
+import json
 from dotenv import load_dotenv
 import os
 import ssl
-
+import asyncio
+import traceback
 
 from aiokafka import AIOKafkaConsumer
+from transcode import transcode_s3_to_s3
 
 load_dotenv(override=True)
 
@@ -38,7 +41,13 @@ class KafkaConsumer:
         await self.__consumer.start()
         try:
             async for msg in self.__consumer:
-                print(f"Received: topic={msg.topic}, value={msg.value.decode()}")
+                try:
+                    print(f"Received: topic={msg.topic}, value={msg.value.decode()}")
+                    data = json.loads(msg.value.decode())
+                    await asyncio.to_thread(transcode_s3_to_s3, data['key'])
+                except Exception as e:
+                    print("Error in transcoding", str(e))
+                    print(traceback.format_exc())
         finally:
             await self.__consumer.stop()
 
