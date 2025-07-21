@@ -38,7 +38,7 @@ function NavBar() {
                 <span className="my-5">Hello {data.user.name}</span>
                 <div className="m-3">
                   <img
-                    class="w-10 h-10 rounded-full"
+                    className="w-10 h-10 rounded-full"
                     src={data.user.image}
                     alt=""
                   />

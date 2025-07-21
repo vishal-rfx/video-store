@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useSession } from "next-auth/react";
 import { redirect } from "next/dist/server/api-utils";
+import { useRouter } from "next/navigation";
 
 function UploadForm() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -10,6 +11,7 @@ function UploadForm() {
   const [description, setDescription] = useState("");
   const [author, setAuthor] = useState("");
   const { data } = useSession();
+  const router = useRouter();
 
   useEffect(() => {
     if (!data) {
@@ -38,7 +40,7 @@ function UploadForm() {
       formData.append("filename", file.name);
 
       const initializeRes = await axios.post(
-        "http://localhost:8000/upload/initialize",
+        `${process.env.NEXT_PUBLIC_UPLOAD_SERVICE}/upload/initialize`,
         formData,
         {
           headers: {
@@ -65,11 +67,15 @@ function UploadForm() {
         chunkFormData.append("uploadId", uploadId);
 
         uploads.push(
-          axios.post("http://localhost:8000/upload", chunkFormData, {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-          })
+          axios.post(
+            `${process.env.NEXT_PUBLIC_UPLOAD_SERVICE}/upload`,
+            chunkFormData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          )
         );
       }
 
@@ -79,7 +85,7 @@ function UploadForm() {
         chunkIndex: res.data.chunkIndex,
       }));
       const completeRes = await axios.post(
-        "http://localhost:8000/upload/complete",
+        `${process.env.NEXT_PUBLIC_UPLOAD_SERVICE}/upload/complete`,
         {
           filename: file.name,
           parts: etags,
@@ -91,12 +97,14 @@ function UploadForm() {
       );
 
       console.log(completeRes.data);
+      // Route to home page after successful upload
+      router.push("/");
     } catch (error) {
       console.error("Error uploading files: ", error);
       console.log("Aborting multipart upload");
       axios
         .post(
-          `http://localhost:8000/upload/abort?upload_id=${uploadId}&filename=${filename}`
+          `${process.env.NEXT_PUBLIC_UPLOAD_SERVICE}/upload/abort?upload_id=${uploadId}&filename=${filename}`
         )
         .then((res) => {
           console.log(res.data);
@@ -104,6 +112,8 @@ function UploadForm() {
         .catch((err) => {
           console.error(err);
         });
+      // Show popup alert on error
+      alert("Error uploading file. Please try again.");
     }
   };
 
