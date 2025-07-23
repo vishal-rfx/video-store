@@ -98,12 +98,6 @@ async def complete(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
     try:
-        s3.complete_multipart_upload(
-            Bucket=s3_bucket,
-            Key=filename,
-            UploadId=upload_id,
-            MultipartUpload={'Parts': parts_sorted}
-        )
         try:
             payload = VideoMetaDataRequest(
                 title=title,
@@ -116,6 +110,13 @@ async def complete(request: Request, db: AsyncSession = Depends(get_db)):
         except Exception as e:
             logger.error(f"Error when sending metadata to postgres {str(e)}")
             logger.error(traceback.format_exc())
+            raise e
+        s3.complete_multipart_upload(
+            Bucket=s3_bucket,
+            Key=filename,
+            UploadId=upload_id,
+            MultipartUpload={'Parts': parts_sorted}
+        )
 
         kafka_producer = KafkaProducer('transcode')
         try:

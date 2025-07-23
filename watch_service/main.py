@@ -56,8 +56,8 @@ async def get_presigned_url(key: str):
 @app.get('/all-videos')
 async def get_all_videos(db: AsyncSession = Depends(get_db)):
     try:
-        # Join video_metadata and hls tables
-        stmt = select(VideoMetaData, HLS).join(HLS, VideoMetaData.id == HLS.video_metadata_id)
+        # Left outer join video_metadata and hls tables
+        stmt = select(VideoMetaData, HLS).join(HLS, VideoMetaData.id == HLS.video_metadata_id, isouter=True)
         result = await db.execute(stmt)
         videos = result.fetchall()
         video_list = []
@@ -88,13 +88,15 @@ async def get_all_videos(db: AsyncSession = Depends(get_db)):
             else:
                 video_dict["url"] = None
             # Public S3 URL for HLS master playlist
-            hls_key = hls.hls_key
+            hls_key = hls.hls_key if hls else None
             if hls_key:
                 hls_url = f"https://{s3_bucket}.s3.{s3_region}.amazonaws.com/{hls_key}"
                 video_dict["hls_url"] = hls_url
             else:
                 video_dict["hls_url"] = None
-            video_list.append(video_dict)
+            # Only add to list if at least the normal video url is present
+            if video_dict["url"]:
+                video_list.append(video_dict)
         return {"videos": video_list}
     except Exception as e:
         logger.error(f"Error fetching videos: {e}")
