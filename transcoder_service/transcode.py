@@ -4,6 +4,10 @@ import boto3
 from dotenv import load_dotenv
 import ffmpeg
 import mimetypes
+import asyncio
+from db.models import HLS, VideoMetaData
+from db.database import SessionLocal
+from db.deps import get_db
 
 
 # Load environment variables
@@ -115,10 +119,11 @@ def generate_master_playlist(local_filename, variant_playlists, key):
         raise
     return master_playlist_path
 
-def upload_hls_to_s3(key):
+async def upload_hls_to_s3_and_db(key, master_playlist_file):
     logger.info("Uploading media m3u8 playlists and ts segments to s3")
     files = os.listdir(HLS_FOLDER)
     prefix = list(key.split('.'))[0]
+    master_hls_key = None
     for file in files:
         if not file.startswith(prefix):
             print(f"File {file} do not start with prefix: {prefix}")
@@ -139,8 +144,45 @@ def upload_hls_to_s3(key):
                 )
             os.remove(file_path)
             logger.info(f"Uploaded and deleted {file}")
+            if file == master_playlist_file:
+                master_hls_key = f"{HLS_FOLDER}/{file}"
         except Exception as e:
             logger.error(f"Failed to upload or delete {file}: {e}")
+    # Insert only the master m3u8 file into DB
+    if master_hls_key:
+        await insert_master_hls_record(key, master_hls_key)
+
+async def insert_master_hls_record(key, master_hls_key):
+    async for session in get_db():
+        video_metadata_id = await session.scalar(
+            VideoMetaData.__table__.select().with_only_columns(VideoMetaData.id).where(VideoMetaData.key == key)
+        )
+        if not video_metadata_id:
+            logger.error(f"No VideoMetaData found for key: {key}")
+            return
+        hls_record = HLS(video_metadata_id=video_metadata_id, hls_key=master_hls_key)
+        session.add(hls_record)
+        await session.commit()
+
+def get_video_metadata_id_by_key(session, key):
+    return session.scalar(
+        session.query(VideoMetaData.id).filter(VideoMetaData.key == key)
+    )
+
+async def insert_hls_records(key, hls_keys):
+    async with SessionLocal() as session:
+        video_metadata_id = await session.scalar(
+            session.execute(
+                VideoMetaData.__table__.select().where(VideoMetaData.key == key)
+            )
+        )
+        if not video_metadata_id:
+            logger.error(f"No VideoMetaData found for key: {key}")
+            return
+        for hls_key in hls_keys:
+            hls_record = HLS(video_metadata_id=video_metadata_id, hls_key=hls_key)
+            session.add(hls_record)
+        await session.commit()
 
 def delete_local_file(local_path):
     try:
@@ -150,13 +192,16 @@ def delete_local_file(local_path):
     except Exception as e:
         logger.warning(f"Failed to delete local mp4 file: {e}")
 
-def transcode_s3_to_s3(key):
+async def transcode_s3_to_s3(key):
     local_path = LOCAL_PATH
     local_filename = os.path.basename(local_path)
     try:
         download_s3_file(key, local_path)
         variant_playlists = generate_variant_playlists(local_filename, local_path, key)
         master_playlist_path = generate_master_playlist(local_filename, variant_playlists, key)
+        logger.info(f"Master playlist path: {master_playlist_path}")
+        master_playlist_file = os.path.basename(master_playlist_path)
+        logger.info(f"Master playlist file: {master_playlist_file}")
     except Exception as e:
         logger.error(f"Transcoding failed: {e}")
         delete_local_file(local_path)
@@ -165,7 +210,7 @@ def transcode_s3_to_s3(key):
     delete_local_file(local_path)
 
     try:
-        upload_hls_to_s3(key)
-        logger.info("Uploaded media m3u8 playlists and ts segments to s3. Also deleted locally")
+        await upload_hls_to_s3_and_db(key, master_playlist_file)
+        logger.info("Uploaded media m3u8 playlists and ts segments to s3. Also deleted locally and added master playlist to DB")
     except Exception as e:
-        logger.error(f"Failed to upload HLS files to S3: {e}")
+        logger.error(f"Failed to upload HLS files to S3 or DB: {e}")

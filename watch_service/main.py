@@ -7,8 +7,10 @@ from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
+from sqlalchemy import select, join
 
 from db.deps import get_db
+from db.models import VideoMetaData, HLS
 
 load_dotenv(override=True)
 logging.basicConfig(level=logging.DEBUG)
@@ -20,6 +22,9 @@ s3 = boto3.client(
     aws_access_key_id = os.getenv('AWS_ACCESS_KEY'),
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
 )
+
+# Get S3 region for public URL construction
+s3_region = os.getenv('AWS_REGION', 'us-east-1')
 
 
 app = FastAPI()
@@ -51,12 +56,24 @@ async def get_presigned_url(key: str):
 @app.get('/all-videos')
 async def get_all_videos(db: AsyncSession = Depends(get_db)):
     try:
-        result = await db.execute(text("SELECT * FROM video_metadata"))
+        # Join video_metadata and hls tables
+        stmt = select(VideoMetaData, HLS).join(HLS, VideoMetaData.id == HLS.video_metadata_id)
+        result = await db.execute(stmt)
         videos = result.fetchall()
         video_list = []
         for row in videos:
-            video_dict = dict(row._mapping)
-            key = video_dict.get("key")
+            video = row[0]
+            hls = row[1]
+            video_dict = {
+                "id": video.id,
+                "title": video.title,
+                "description": video.description,
+                "author": video.author,
+                "key": video.key,
+                "created_at": video.created_at,
+            }
+            # Presigned S3 URL for mp4
+            key = video.key
             if key:
                 try:
                     url = s3.generate_presigned_url(
@@ -70,6 +87,13 @@ async def get_all_videos(db: AsyncSession = Depends(get_db)):
                     video_dict["url"] = None
             else:
                 video_dict["url"] = None
+            # Public S3 URL for HLS master playlist
+            hls_key = hls.hls_key
+            if hls_key:
+                hls_url = f"https://{s3_bucket}.s3.{s3_region}.amazonaws.com/{hls_key}"
+                video_dict["hls_url"] = hls_url
+            else:
+                video_dict["hls_url"] = None
             video_list.append(video_dict)
         return {"videos": video_list}
     except Exception as e:

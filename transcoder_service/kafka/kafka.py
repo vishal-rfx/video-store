@@ -35,7 +35,7 @@ class KafkaConsumer:
                 try:
                     print(f"Received: topic={msg.topic}, value={msg.value.decode()}")
                     data = json.loads(msg.value.decode())
-                    await asyncio.to_thread(transcode_s3_to_s3, data['key'])
+                    await transcode_s3_to_s3(data['key'])
                 except Exception as e:
                     print("Error in transcoding", str(e))
                     print(traceback.format_exc())
