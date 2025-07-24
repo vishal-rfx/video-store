@@ -1,10 +1,10 @@
 "use client";
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, Suspense } from "react";
 import Hls from "hls.js";
 import { useSearchParams } from "next/navigation";
 import { toast, Toaster } from "sonner";
 
-const VideoPlayer = () => {
+function VideoPlayerInner() {
   const videoRef = useRef(null);
   const searchParams = useSearchParams();
   const hls = searchParams.get("hls");
@@ -50,6 +50,16 @@ const VideoPlayer = () => {
       </div>
     </div>
   );
-};
+}
 
-export default VideoPlayer;
+export default function VideoPlayer() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-white text-center py-8">Loading video...</div>
+      }
+    >
+      <VideoPlayerInner />
+    </Suspense>
+  );
+}

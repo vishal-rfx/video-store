@@ -1,10 +1,13 @@
-# Install dependencies and build the app
+# Builder
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
 RUN npm run build
+
+# Prune dev dependencies
+RUN npm prune --production
 
 # Production image
 FROM node:20-alpine AS runner

@@ -1,12 +1,14 @@
 import logging
 import asyncio
-import time
+import os
 from kafka.kafka import KafkaConsumer
 
 logger = logging.getLogger(__name__)
 
 async def consume():
-    consumer = KafkaConsumer("transcode", f"transcode_consumer_group_id_{time.time()}")
+    # Use a consistent consumer group ID instead of timestamp
+    consumer_group_id = os.getenv('KAFKA_CONSUMER_GROUP_ID', 'transcode_consumer_group')
+    consumer = KafkaConsumer("transcode", consumer_group_id)
     await consumer.consume()
 
 if __name__ == "__main__":

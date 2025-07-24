@@ -4,7 +4,6 @@ import boto3
 from dotenv import load_dotenv
 import ffmpeg
 import mimetypes
-import asyncio
 from db.models import HLS, VideoMetaData
 from db.database import SessionLocal
 from db.deps import get_db

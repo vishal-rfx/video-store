@@ -1,0 +1,40 @@
+# Builder stage
+FROM python:3.12-slim AS builder
+WORKDIR /app
+
+# Install system dependencies and ffmpeg
+RUN apt-get update && apt-get install -y build-essential libpq-dev ffmpeg && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --upgrade pip && pip install uv
+
+COPY pyproject.toml uv.lock ./
+RUN uv venv /app/.venv && . /app/.venv/bin/activate && uv pip install .
+
+COPY . .
+
+# Final stage
+FROM python:3.12-slim
+WORKDIR /app
+
+# Install ffmpeg in the final image
+RUN apt-get update && apt-get install -y ffmpeg && rm -rf /var/lib/apt/lists/*
+
+# Create a non-root user
+RUN useradd --create-home --shell /bin/bash app && chown -R app:app /app
+
+# Copy virtual environment from builder
+COPY --from=builder /app/.venv /app/.venv
+
+# Copy application code
+COPY . .
+
+# Make startup script executable
+RUN chmod +x start.sh
+
+# Set environment to use the virtualenv
+ENV PATH="/app/.venv/bin:$PATH"
+
+USER app
+EXPOSE 8002
+
+CMD ["./start.sh"]

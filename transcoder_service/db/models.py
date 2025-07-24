@@ -20,5 +20,5 @@ class HLS(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     video_metadata_id: Mapped[int] = mapped_column(Integer, ForeignKey("video_metadata.id"), nullable=False)
-    hls_key: Mapped[str] = mapped_column(Text, nullable=False)
+    hls_key: Mapped[str] = mapped_column(Text, unique=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

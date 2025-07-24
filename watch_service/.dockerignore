@@ -1,0 +1,36 @@
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.db
+*.sqlite3
+*.log
+.git
+.gitignore
+Dockerfile
+docker-compose.yaml
+README.md
+*.md
+.env*
+.vscode
+.idea
+migrations
+
+.venv/
+
+# Git
+.git
+.gitignore
+
+# Docker
+.docker
+
+#Python
+db/__pycache__/
+core/__pycache__/
+db/*/__pycache__/
+*/*/__pycache__/
+*/*/*/__pycache__/
+.env/
+.venv/
+venv/

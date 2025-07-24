@@ -73,6 +73,81 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    image: client:latest
+    container_name: client
+    ports:
+      - "3000:3000"
+    environment:
+      - WATCH_SERVICE=http://watch_service:8003
+      - NEXTAUTH_URL=http://localhost:3000
+      - GOOGLE_CLIENT_ID=
+      - GOOGLE_CLIENT_SECRET=
+      - NEXTAUTH_SECRET=
+      - NEXT_PUBLIC_UPLOAD_SERVICE=
+      # Add other client env vars as needed
+    depends_on:
+      - watch
+
+  watch:
+    build:
+      context: ./watch_service
+      dockerfile: Dockerfile
+    image: watch_service:latest
+    container_name: watch_service
+    ports:
+      - "8003:8003"
+    environment:
+      - AWS_ACCESS_KEY=
+      - AWS_SECRET_ACCESS_KEY=
+      - S3_BUCKET_NAME=
+      - AWS_REGION=
+      - PG_DATABASE_URL=
+    depends_on:
+      - postgres
+
+  upload:
+    build:
+      context: ./upload_service
+      dockerfile: Dockerfile
+    image: upload_service:latest
+    container_name: upload_service
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_ACCESS_KEY=
+      - AWS_SECRET_ACCESS_KEY=
+      - S3_BUCKET_NAME=
+      - AWS_REGION=
+      - PG_DATABASE_URL=
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+    depends_on:
+      - postgres
+      - kafka
+
+  transcode:
+    build:
+      context: ./transcoder_service
+      dockerfile: Dockerfile
+    image: transcode_service:latest
+    container_name: transcode_service
+    environment:
+      - AWS_ACCESS_KEY=
+      - AWS_SECRET_ACCESS_KEY=
+      - S3_BUCKET_NAME=
+      - AWS_REGION=
+      - PG_DATABASE_URL=
+      - KAFKA_BOOTSTRAP_SERVERS=
+      - KAFKA_CONSUMER_GROUP_ID=
+    volumes:
+      - ./.watch_data:/app/hls
+    depends_on:
+      - kafka
+      - upload
+
 volumes:
   zookeeper_data:
   kafka_data:
