@@ -118,9 +118,10 @@ async def complete(request: Request, db: AsyncSession = Depends(get_db)):
             MultipartUpload={'Parts': parts_sorted}
         )
 
-        kafka_producer = KafkaProducer('transcode')
+
         try:
             msg_bytes = json.dumps({"key": filename}).encode('utf-8')
+            kafka_producer = KafkaProducer('transcode')
             await kafka_producer.send(msg_bytes)
         except Exception as e:
             logger.error(f"Error sending message to kafka: {e}")

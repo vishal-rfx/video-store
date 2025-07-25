@@ -1,3 +1,4 @@
 docker-compose.local.yaml
 .watch_data/
 .cursorignore
+docker-compose.dev.yaml

@@ -1,5 +1,5 @@
 # Builder stage
-FROM python:3.12-slim AS builder
+FROM --platform=linux/amd64 python:3.12-slim AS builder
 WORKDIR /app
 
 # Install system dependencies and ffmpeg
@@ -13,7 +13,7 @@ RUN uv venv /app/.venv && . /app/.venv/bin/activate && uv pip install .
 COPY . .
 
 # Final stage
-FROM python:3.12-slim
+FROM --platform=linux/amd64 python:3.12-slim
 WORKDIR /app
 
 # Install ffmpeg in the final image

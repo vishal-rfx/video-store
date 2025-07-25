@@ -1,5 +1,5 @@
 # Builder stage
-FROM python:3.12-slim AS builder
+FROM --platform=linux/amd64 python:3.12-slim AS builder
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y build-essential libpq-dev && rm -rf /var/lib/apt/lists/*
@@ -12,7 +12,7 @@ RUN uv venv /app/.venv && . /app/.venv/bin/activate && uv pip install .
 COPY . .
 
 # Final stage
-FROM python:3.12-slim
+FROM --platform=linux/amd64 python:3.12-slim
 WORKDIR /app
 
 # Create a non-root user
