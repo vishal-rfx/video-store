@@ -7,29 +7,28 @@ A scalable video streaming platform built with modern microservices architecture
 This application follows a microservices architecture with the following components:
 
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Next.js       │    │  Upload Service │    │Transcoder Service│
-│   Frontend      │◄──►│   (FastAPI)     │◄──►│   (Python)      │
-│                 │    │                 │    │                 │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Next.js       │───►│  Watch Service  │    │  Upload Service │◄───│   Next.js       │
+│   Frontend      │    │   (FastAPI)     │    │   (FastAPI)     │    │   Frontend      │
+│                 │    │                 │    │                 │    │                 │
+└─────────────────┘    └─────────────────┘    └─────────────────┘    └─────────────────┘
          │                       │                       │
-         │                       ▼                       │
-         │              ┌─────────────────┐              │
-         │              │   PostgreSQL    │              │
-         │              │   Database      │              │
-         │              └─────────────────┘              │
-         │                                               │
-         ▼              ┌─────────────────┐              │
-┌─────────────────┐     │     Kafka       │◄─────────────┘
-│  Watch Service  │     │   Message Bus   │
-│   (FastAPI)     │     │                 │
-└─────────────────┘     └─────────────────┘
-         │
-         ▼
-┌─────────────────┐
-│   Amazon S3     │
-│  File Storage   │
-└─────────────────┘
+         │                       ▼                       ▼
+         │              ┌─────────────────┐    ┌─────────────────┐
+         │              │   PostgreSQL    │    │     Kafka       │
+         │              │   Database      │    │   Message Bus   │
+         │              └─────────────────┘    └─────────────────┘
+         │                                              │
+         │                                              ▼
+         │                                    ┌─────────────────┐
+         │                                    │Transcoder Service│
+         │                                    │   (Python)      │
+         │                                    └─────────────────┘
+         │                                              │
+         │              ┌─────────────────┐             │
+         └─────────────►│   Amazon S3     │◄────────────┘
+                        │  File Storage   │
+                        └─────────────────┘
 ```
 
 ## 🚀 Services
@@ -44,7 +43,6 @@ This application follows a microservices architecture with the following compone
   - Responsive video gallery
   - Real-time video player with react-player
 
-
 ### 2. Upload Service (FastAPI)
 
 - **Technology**: Python 3.12+, FastAPI, SQLAlchemy, AsyncPG
@@ -54,7 +52,6 @@ This application follows a microservices architecture with the following compone
   - Video metadata storage in PostgreSQL
   - Kafka message publishing for transcoding pipeline
   - CORS enabled for frontend integration
-
 
 ### 3. Transcoder Service (Python)
 
@@ -82,7 +79,6 @@ This application follows a microservices architecture with the following compone
   - Video metadata retrieval
   - Database integration for video catalog
 
-
 ## 🛠️ Technology Stack
 
 ### Frontend
@@ -101,5 +97,3 @@ This application follows a microservices architecture with the following compone
 - **Message Queue**: Apache Kafka with SASL_SSL
 - **File Storage**: Amazon S3 with multipart upload
 - **Video Processing**: FFmpeg with Python bindings
-
-
