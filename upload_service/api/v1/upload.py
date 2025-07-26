@@ -126,7 +126,7 @@ async def complete(request: Request, db: AsyncSession = Depends(get_db)):
         except Exception as e:
             logger.error(f"Error sending message to kafka: {e}")
             logger.error(traceback.format_exc())
-            raise HTTPException(status_code=500, detail=str(e))
+            
 
         return {
             "message": "File uploaded successfully"
