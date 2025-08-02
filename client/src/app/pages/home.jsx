@@ -18,7 +18,6 @@ function HomePage() {
     const getVideos = async () => {
       try {
         const res = await axios.get("/api/videos");
-        console.log(res);
         if (Array.isArray(res.data.videos) && res.data.videos.length > 0) {
           setVideos(res.data.videos);
           setLoading(false);
@@ -28,7 +27,6 @@ function HomePage() {
           setLoading(false);
         }
       } catch (error) {
-        console.log("Error in fetching videos: ", error);
         setError(
           error.response?.data?.error ||
             "Failed to fetch videos. Please try again later."

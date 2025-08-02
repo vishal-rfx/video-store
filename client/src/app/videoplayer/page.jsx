@@ -30,10 +30,12 @@ function VideoPlayerInner() {
       });
 
       hlsjs.on(Hls.Events.ERROR, function (event, data) {
-        console.error("HLS Error:", data);
-        setHasError(true);
-        setIsLoading(false);
-        toast.error("Failed to load HLS stream. Trying fallback...");
+        // Only show error for fatal errors, not recoverable ones
+        if (data.fatal) {
+          setHasError(true);
+          setIsLoading(false);
+          toast.error("Failed to load HLS stream. Trying fallback...");
+        } 
       });
     } else if (video && src) {
       video.src = src;

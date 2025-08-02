@@ -96,21 +96,17 @@ function UploadForm() {
         }
       );
 
-      console.log(completeRes.data);
       // Route to home page after successful upload
       router.push("/");
     } catch (error) {
-      console.error("Error uploading files: ", error);
-      console.log("Aborting multipart upload");
+
       axios
         .post(
           `${process.env.NEXT_PUBLIC_UPLOAD_SERVICE}/upload/abort?upload_id=${uploadId}&filename=${filename}`
         )
         .then((res) => {
-          console.log(res.data);
         })
         .catch((err) => {
-          console.error(err);
         });
       // Show popup alert on error
       alert("Error uploading file. Please try again.");
@@ -239,7 +235,7 @@ function UploadForm() {
                         </span>
                       </div>
                       <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">
-                        MP4, WebM, MOV up to 10GB
+                        MP4, WebM, MOV up to 1GB
                       </p>
                     </div>
                   </div>
